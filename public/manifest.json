@@ -1,0 +1,49 @@
+{
+  "name": "TeleWoo - تحويل تلقرام لووكومرس",
+  "short_name": "TeleWoo",
+  "description": "TeleWoo - تحويل منشورات Telegram إلى منتجات WooCommerce بمعالجة AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Pipeline",
+      "short_name": "Pipeline",
+      "description": "مزامنة ومعالجة المنشورات",
+      "url": "/pipeline?tab=inbox",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "المنتجات",
+      "short_name": "منتجات",
+      "description": "إدارة المنتجات",
+      "url": "/products",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "الإحصائيات",
+      "short_name": "إحصائيات",
+      "description": "عرض الإحصائيات",
+      "url": "/stats",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "96x96" }]
+    }
+  ]
+}
