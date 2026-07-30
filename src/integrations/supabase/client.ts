@@ -10,6 +10,10 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[^\x00-\xFF]/g, (ch) => encodeURIComponent(ch));
+}
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
@@ -17,7 +21,13 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     );
 
     if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+      new Headers(init.headers).forEach((value, key) => {
+        try {
+          headers.set(key, sanitizeHeaderValue(value));
+        } catch {
+          // Fallback if header key/val fails standard validation
+        }
+      });
     }
 
     // New Supabase API keys are opaque strings, not bearer JWTs.
@@ -25,7 +35,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       headers.delete('Authorization');
     }
 
-    headers.set('apikey', supabaseKey);
+    if (supabaseKey) {
+      headers.set('apikey', sanitizeHeaderValue(supabaseKey));
+    }
     return fetch(input, { ...init, headers });
   };
 }
