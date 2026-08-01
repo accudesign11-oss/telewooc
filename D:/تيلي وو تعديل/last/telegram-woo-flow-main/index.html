@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>TeleWoo Flow - منصة تحويل التليجرام لووكومرس | المنهندس أحمد عبدالعظيم</title>
+    <meta name="description" content="منصة TeleWoo Flow - تحويل منشورات Telegram إلى منتجات WooCommerce بضغطة زر وتوليد محتوى AI احترافي، تطوير وإخراج المنهندس أحمد عبدالعظيم">
+    <meta name="author" content="المهندس أحمد عبدالعظيم" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TeleWoo" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/telewoo-logo.png">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/telewoo-logo.png">
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/telewoo-logo.png" />
+    <link rel="icon" type="image/png" href="/telewoo-logo.png">
+    
+    <meta property="og:title" content="TeleWoo Flow - منصة تحويل التليجرام لووكومرس | المنهندس أحمد عبدالعظيم">
+    <meta name="twitter:title" content="TeleWoo Flow - منصة تحويل التليجرام لووكومرس | المنهندس أحمد عبدالعظيم">
+    <meta property="og:description" content="منصة TeleWoo Flow الذكية لإدارة ونشر منتجات WooCommerce وتحويل منشورات تليجرام تلقائياً مع تحسين محركات البحث والذكاء الاصطناعي">
+    <meta name="twitter:description" content="منصة TeleWoo Flow الذكية لإدارة ونشر منتجات WooCommerce وتحويل منشورات تليجرام تلقائياً مع تحسين محركات البحث والذكاء الاصطناعي">
+</head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
