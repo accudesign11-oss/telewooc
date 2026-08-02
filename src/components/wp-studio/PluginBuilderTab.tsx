@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Package, Loader2, Sparkles, Download, History, RefreshCw, Lightbulb, FileCode2, Merge, Edit3, XCircle, Trash2, Code, Copy, Check, Eye, Zap, Shield, CreditCard, Truck, Tag, Globe, Sliders, Plus, Key, Cpu } from "lucide-react";
+import { Package, Loader2, Sparkles, Download, History, RefreshCw, Lightbulb, FileCode2, Merge, Edit3, XCircle, Trash2, Code, Copy, Check, Eye, Zap, Shield, CreditCard, Truck, Tag, Globe, Sliders, Plus, Key, Cpu, Radio, Activity, Share2, Layers, Settings, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
@@ -61,11 +61,10 @@ export function PluginBuilderTab() {
   const [generating, setGenerating] = useState(false);
   const [autoDeploying, setAutoDeploying] = useState(false);
   const [plugins, setPlugins] = useState<any[]>([]);
-  const [versions, setVersions] = useState<Record<string, any[]>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedPlugin, setSelectedPlugin] = useState<any | null>(null);
 
-  // ====== 13-TAB FEATURE SUITE STATES ======
-  // 1. Standard & Dynamic Payment Gateways
+  // ====== 13-TAB FEATURE SUITE MATRIX STATES ======
+  // 1. Payment Gateways
   const [enableInstaPay, setEnableInstaPay] = useState(true);
   const [instapayTitle, setInstapayTitle] = useState("الدفع السريع عبر إنستا باي (InstaPay)");
   const [instapayHandle, setInstapayHandle] = useState("username@instapay");
@@ -78,87 +77,26 @@ export function PluginBuilderTab() {
 
   const [enableBankTransfer, setEnableBankTransfer] = useState(false);
   const [bankTitle, setBankTitle] = useState("التحويل البنكي المباشر (Bank Wire)");
-  const [bankName, setBankName] = useState("البنك الأهلي المصري / بنك مصر");
   const [bankIban, setBankIban] = useState("EG12345678901234567890123456");
-  const [bankAccountName, setBankAccountName] = useState("اسم صاحب الحساب");
   const [bankInstructions, setBankInstructions] = useState("يرجى إرفاق رقم الطلب كمرجع للتحويل البنكي.");
 
-  const [enableWhatsappPayment, setEnableWhatsappPayment] = useState(false);
-  const [whatsappPaymentTitle, setWhatsappPaymentTitle] = useState("تأكيد الطلب والدفع عبر الواتساب");
-  const [whatsappPaymentNumber, setWhatsappPaymentNumber] = useState("201012345678");
-  const [whatsappPaymentInstructions, setWhatsappPaymentInstructions] = useState("سيتم توجيهك فوراً للواتساب لتأكيد بيانات الشحن وإرسال تفاصيل الدفع.");
-
   const [enableCod, setEnableCod] = useState(true);
-  const [codTitle, setCodTitle] = useState("الدفع نقداً عند الاستلام (COD)");
-  const [codInstructions, setCodInstructions] = useState("قم بدفع المبلغ نقداً لمندوب التوصيل عند استلام الطلب.");
-
-  // DYNAMIC EXTRA PAYMENT GATEWAYS LIST
   const [customGateways, setCustomGateways] = useState<CustomGateway[]>([]);
 
-  const addCustomGateway = () => {
-    const nextIdx = customGateways.length + 1;
-    setCustomGateways([
-      ...customGateways,
-      {
-        id: `custom_gw_${Date.now()}`,
-        title: `بوابة دفع مخصصة #${nextIdx}`,
-        account: "رقم الحساب / المحفظة",
-        instructions: "تعليمات الدفع والتحويل...",
-      },
-    ]);
-  };
-
-  const removeCustomGateway = (id: string) => {
-    setCustomGateways(customGateways.filter((g) => g.id !== id));
-  };
-
-  // 2. Standard & Dynamic Shipping Methods
+  // 2. Shipping Methods
   const [enableExpressShipping, setEnableExpressShipping] = useState(true);
   const [expressTitle, setExpressTitle] = useState("شحن سريع وسريع جداً (خلال 24-48 ساعة)");
   const [expressPrice, setExpressPrice] = useState("60");
-
-  const [enableFreeShippingThreshold, setEnableFreeShippingThreshold] = useState(true);
-  const [freeShippingThreshold, setFreeShippingThreshold] = useState("500");
-
-  // DYNAMIC EXTRA SHIPPING RATES LIST
   const [customShippingRates, setCustomShippingRates] = useState<CustomShipping[]>([]);
 
-  const addCustomShippingRate = () => {
-    const nextIdx = customShippingRates.length + 1;
-    setCustomShippingRates([
-      ...customShippingRates,
-      {
-        id: `custom_ship_${Date.now()}`,
-        title: `طريقة شحن إضافية #${nextIdx}`,
-        cost: "40",
-      },
-    ]);
-  };
-
-  const removeCustomShippingRate = (id: string) => {
-    setCustomShippingRates(customShippingRates.filter((s) => s.id !== id));
-  };
-
-  // 3. Multi-Language Switcher with Flags
+  // 3. Multi-Language Switcher
   const [enableMultiLanguage, setEnableMultiLanguage] = useState(true);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["ar", "en", "fr"]);
-  const [languagePosition, setLanguagePosition] = useState<string>("header"); // header, footer, float
-
-  const toggleLanguage = (code: string) => {
-    if (selectedLanguages.includes(code)) {
-      if (selectedLanguages.length > 1) {
-        setSelectedLanguages(selectedLanguages.filter((l) => l !== code));
-      }
-    } else {
-      setSelectedLanguages([...selectedLanguages, code]);
-    }
-  };
 
   // 4. Checkout Fields & Auto Coupons
   const [hideOrderNotes, setHideOrderNotes] = useState(true);
   const [hideCompanyField, setHideCompanyField] = useState(true);
   const [requirePhoneField, setRequirePhoneField] = useState(true);
-
   const [enableAutoCoupon, setEnableAutoCoupon] = useState(true);
   const [autoCouponCode, setAutoCouponCode] = useState("OFF10");
   const [autoCouponMinSpend, setAutoCouponMinSpend] = useState("300");
@@ -167,24 +105,32 @@ export function PluginBuilderTab() {
   const [enableWhatsappFloat, setEnableWhatsappFloat] = useState(true);
   const [whatsappFloatNumber, setWhatsappFloatNumber] = useState("201012345678");
   const [whatsappFloatMsg, setWhatsappFloatMsg] = useState("مرحباً، أود الاستفسار عن الطلب وتفاصيل الشحن");
-
   const [enableStickyMobileBar, setEnableStickyMobileBar] = useState(true);
   const [stickyBarText, setStickyBarText] = useState("⚡ اطلب الآن قبل نفاذ الكمية");
-
-  const [enableCountdownTimer, setEnableCountdownTimer] = useState(true);
-  const [enableTrustBadges, setEnableTrustBadges] = useState(true);
   const [enableTopAnnouncement, setEnableTopAnnouncement] = useState(true);
   const [announcementText, setAnnouncementText] = useState("🎉 خصم حصري 20% لجميع الطلبات اليوم! استخدم كود: VIP20");
 
-  // 6. Security Hardening & Speed
+  // 6. Security Hardening & Speed Performance
   const [disableRightClick, setDisableRightClick] = useState(true);
   const [hideWpVersion, setHideWpVersion] = useState(true);
   const [disableXmlrpc, setDisableXmlrpc] = useState(true);
   const [disableEmojis, setDisableEmojis] = useState(true);
   const [removeQueryStrings, setRemoveQueryStrings] = useState(true);
 
+  // 7. REST API & Webhooks
+  const [enableRestApiEndpoint, setEnableRestApiEndpoint] = useState(true);
+  const [enableOrderWebhooks, setEnableOrderWebhooks] = useState(true);
+  const [webhookTargetUrl, setWebhookTargetUrl] = useState("https://example.com/webhook");
+
+  // 8. Marketing Pixels
+  const [enableMetaPixel, setEnableMetaPixel] = useState(false);
+  const [metaPixelId, setMetaPixelId] = useState("1234567890");
+
   // Modal State
   const [viewCodePlugin, setViewCodePlugin] = useState<any | null>(null);
+  const [editModalPlugin, setEditModalPlugin] = useState<any | null>(null);
+  const [editPrompt, setEditPrompt] = useState<string>("");
+  const [updatingPlugin, setUpdatingPlugin] = useState<boolean>(false);
   const [viewingPhpCode, setViewingPhpCode] = useState<string>("");
   const [loadingCode, setLoadingCode] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
@@ -199,47 +145,56 @@ export function PluginBuilderTab() {
 
   useEffect(() => { loadPlugins(); }, []);
 
-  const openCodeModal = async (plugin: any) => {
-    setViewCodePlugin(plugin);
-    setLoadingCode(true);
-    try {
-      const { data: latestVer } = await supabase
-        .from("wp_plugin_versions")
-        .select("*")
-        .eq("plugin_id", plugin.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+  const addCustomGateway = () => {
+    const nextIdx = customGateways.length + 1;
+    setCustomGateways([
+      ...customGateways,
+      { id: "custom_gw_" + Date.now(), title: "بوابة دفع مخصصة #" + nextIdx, account: "رقم الحساب / المحفظة", instructions: "تعليمات التحويل..." }
+    ]);
+  };
 
-      if (latestVer?.php_code) {
-        setViewingPhpCode(latestVer.php_code);
-      } else {
-        setViewingPhpCode(`<?php\n/**\n * Plugin Name: ${plugin.name}\n * Description: ${plugin.description || ""}\n * Version: ${plugin.current_version}\n */\n\nif (!defined('ABSPATH')) exit;\n`);
-      }
-    } catch (e: any) {
-      setViewingPhpCode(`<?php\n// ${plugin.name} v${plugin.current_version}\n`);
-    } finally {
-      setLoadingCode(false);
+  const removeCustomGateway = (id: string) => {
+    setCustomGateways(customGateways.filter((g) => g.id !== id));
+  };
+
+  const addCustomShippingRate = () => {
+    const nextIdx = customShippingRates.length + 1;
+    setCustomShippingRates([
+      ...customShippingRates,
+      { id: "custom_ship_" + Date.now(), title: "طريقة شحن مخصصة #" + nextIdx, cost: "40" }
+    ]);
+  };
+
+  const removeCustomShippingRate = (id: string) => {
+    setCustomShippingRates(customShippingRates.filter((s) => s.id !== id));
+  };
+
+  const toggleLanguage = (code: string) => {
+    if (selectedLanguages.includes(code)) {
+      if (selectedLanguages.length > 1) setSelectedLanguages(selectedLanguages.filter((l) => l !== code));
+    } else {
+      setSelectedLanguages([...selectedLanguages, code]);
     }
   };
 
-        // ====== GENERATE COMPLETE PHP SUITE CODE WITH WP-ADMIN DASHBOARD & GEMINI ENGINE ======
-  const generateSuitePhpCode = (customPromptText: string = "") => {
+  // ====== GENERATE PHP SUITE CODE WITH FULL WP-ADMIN DASHBOARD & AI ENGINE ======
+  const generateSuitePhpCode = (pluginName: string = "TeleWoo Ultimate Suite", customPromptText: string = "") => {
     const esc = (s: string) => (s || "").replace(/'/g, "\\'");
+    const safeName = esc(pluginName);
 
     let php = "<?php\n";
     php += "/**\n";
-    php += " * Plugin Name: TeleWoo Ultimate Suite & Admin AI Engine\n";
-    php += " * Description: إضافة موحدة وتفاعلية لمتجرك مع لوحة تحكم كاملة داخل وردبريس ومحرك Gemini AI للتعديل أونلاين.\n";
+    php += " * Plugin Name: ' + safeName + '\n";
+    php += " * Description: إضافة موحدة ومطورة تعتمد على مصفوفة التبويبات الـ 13 مع لوحة تحكم كاملة ومحرك Gemini AI أونلاين.\n";
     php += " * Version: 6.0.0\n";
-    php += " * Author: TeleWoo Studio\n";
+    php += " * Author: TeleWoo Studio Engine\n";
     php += " */\n\n";
     php += "if (!defined('ABSPATH')) exit;\n\n";
 
-    // 1. WP-ADMIN MENU & SETTINGS PANEL WITH AJAX AI ENGINE
+    // 1. WP-ADMIN MENU & SETTINGS PANEL
     php += "// ==================== 1. WP-ADMIN MENU & SETTINGS PANEL ====================\n";
     php += "add_action('admin_menu', function() {\n";
-    php += "  add_menu_page('TeleWoo Suite', 'TeleWoo Suite ⚡', 'manage_options', 'telewoo-suite-settings', 'telewoo_suite_render_admin_page', 'dashicons-superhero', 56);\n";
+    php += "  add_menu_page('' + safeName + '', '' + safeName + ' ⚡', 'manage_options', 'telewoo-suite-settings', 'telewoo_suite_render_admin_page', 'dashicons-superhero', 56);\n";
     php += "});\n\n";
 
     php += "function telewoo_suite_render_admin_page() {\n";
@@ -262,7 +217,7 @@ export function PluginBuilderTab() {
     php += "    update_option('telewoo_opt_norightclick', isset($_POST['telewoo_opt_norightclick']) ? 'yes' : 'no');\n";
     php += "    if (isset($_POST['telewoo_custom_css'])) update_option('telewoo_ai_css', wp_unslash($_POST['telewoo_custom_css']));\n";
     php += "    if (isset($_POST['telewoo_custom_js'])) update_option('telewoo_ai_js', wp_unslash($_POST['telewoo_custom_js']));\n";
-    php += "    echo '<div class=\'updated notice is-dismissible\'><p><strong>✅ تم حفظ كافة الإعدادات وخيارات التفعيل بنجاح داخل وردبريس!</strong></p></div>';\n";
+    php += "    echo '<div class=\\'updated notice is-dismissible\\'><p><strong>✅ تم حفظ كافة الإعدادات وخيارات التفعيل بنجاح داخل وردبريس!</strong></p></div>';\n";
     php += "  }\n";
     php += "  $gemini_key = get_option('telewoo_gemini_key', '');\n";
     php += "  $ai_css = get_option('telewoo_ai_css', '');\n";
@@ -270,29 +225,29 @@ export function PluginBuilderTab() {
     php += "  ?>\n";
     php += "  <div class='wrap' dir='rtl' style='font-family:tahoma,sans-serif;max-width:1100px;margin-top:20px;'>\n";
     php += "    <div style='background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;padding:20px 25px;border-radius:12px;margin-bottom:20px;box-shadow:0 10px 25px rgba(0,0,0,0.3);'>\n";
-    php += "      <h1 style='color:#fff;margin:0 0 8px 0;font-size:24px;'>⚡ لوحة تحكم TeleWoo Ultimate Suite الإدارية ومحرك الذكاء الاصطناعي</h1>\n";
+    php += "      <h1 style='color:#fff;margin:0 0 8px 0;font-size:24px;'>⚡ لوحة تحكم ' + safeName + ' الإدارية</h1>\n";
     php += "      <p style='margin:0;opacity:0.9;font-size:14px;'>تحكم كامل بتفعيل وتعطيل كافة المزايا، إضافة بوابات الدفع والشحن، والحقن التلقائي المباشر بالذكاء الاصطناعي من داخل وردبريس.</p>\n";
     php += "    </div>\n";
     php += "    <form method='post' action=''>\n";
     php += "      <div style='background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);'>\n";
     php += "        <h3 style='margin-top:0;color:#1e293b;border-bottom:2px solid #6366f1;padding-bottom:8px;'>🤖 محرك الحقن المباشر بالذكاء الاصطناعي (AI Live Generator)</h3>\n";
     php += "        <table class='form-table'>\n";
-    php += "          <tr><th><label>مفتاح Gemini API Key:</label></th><td><input type='text' name='telewoo_gemini_key' id='telewoo_gemini_key' value='<?php echo esc_attr($gemini_key); ?>' class='regular-text' placeholder='AIzaSy...' /></td></tr>\n";
-    php += "          <tr><th><label>كود CSS المخصص المحقون:</label></th><td><textarea name='telewoo_custom_css' id='telewoo_custom_css' class='large-text code' rows='5'><?php echo esc_textarea($ai_css); ?></textarea></td></tr>\n";
-    php += "          <tr><th><label>كود JS المخصص المحقون:</label></th><td><textarea name='telewoo_custom_js' id='telewoo_custom_js' class='large-text code' rows='5'><?php echo esc_textarea($ai_js); ?></textarea></td></tr>\n";
+    php += "          <tr><th><label>مفتاح Gemini API Key:</label></th><td><input type='text' name='telewoo_gemini_key' value='<?php echo esc_attr($gemini_key); ?>' class='regular-text' placeholder='AIzaSy...' /></td></tr>\n";
+    php += "          <tr><th><label>كود CSS المخصص المحقون:</label></th><td><textarea name='telewoo_custom_css' class='large-text code' rows='5'><?php echo esc_textarea($ai_css); ?></textarea></td></tr>\n";
+    php += "          <tr><th><label>كود JS المخصص المحقون:</label></th><td><textarea name='telewoo_custom_js' class='large-text code' rows='5'><?php echo esc_textarea($ai_js); ?></textarea></td></tr>\n";
     php += "        </table>\n";
     php += "      </div>\n";
     php += "      <div style='background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);'>\n";
     php += "        <h3 style='margin-top:0;color:#1e293b;border-bottom:2px solid #10b981;padding-bottom:8px;'>💳 مصفوفة بوابات الدفع وطرق الشحن والتفعيل</h3>\n";
     php += "        <table class='form-table'>\n";
-    php += "          <tr><th><label>تفعيل إنستا باي (InstaPay):</label></th><td><input type='checkbox' name='telewoo_opt_instapay' value='yes' <?php checked(get_option('telewoo_opt_instapay', '" + (enableInstaPay ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل البوابة</strong><br><br><input type='text' name='telewoo_instapay_title' value='<?php echo esc_attr(get_option('telewoo_instapay_title', '" + esc(instapayTitle) + "')); ?>' class='regular-text' placeholder='عنوان البوابة' /><br><input type='text' name='telewoo_instapay_handle' value='<?php echo esc_attr(get_option('telewoo_instapay_handle', '" + esc(instapayHandle) + "')); ?>' class='regular-text' placeholder='معرف InstaPay Handle' /></td></tr>\n";
-    php += "          <tr><th><label>تفعيل فودافون كاش:</label></th><td><input type='checkbox' name='telewoo_opt_vodafone' value='yes' <?php checked(get_option('telewoo_opt_vodafone', '" + (enableMobileWallets ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل المحافظ</strong><br><br><input type='text' name='telewoo_vodafone_number' value='<?php echo esc_attr(get_option('telewoo_vodafone_number', '" + esc(vodafoneNumber) + "')); ?>' class='regular-text' placeholder='رقم المحفظة' /></td></tr>\n";
-    php += "          <tr><th><label>تفعيل التحويل البنكي:</label></th><td><input type='checkbox' name='telewoo_opt_bank' value='yes' <?php checked(get_option('telewoo_opt_bank', '" + (enableBankTransfer ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل التحويل البنكي</strong><br><br><input type='text' name='telewoo_bank_iban' value='<?php echo esc_attr(get_option('telewoo_bank_iban', '" + esc(bankIban) + "')); ?>' class='regular-text' placeholder='رقم الايبان IBAN' /></td></tr>\n";
-    php += "          <tr><th><label>تفعيل الشحن السريع:</label></th><td><input type='checkbox' name='telewoo_opt_express' value='yes' <?php checked(get_option('telewoo_opt_express', '" + (enableExpressShipping ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل الشحن السريع</strong><br><br><input type='text' name='telewoo_express_price' value='<?php echo esc_attr(get_option('telewoo_express_price', '" + esc(expressPrice) + "')); ?>' class='small-text' /> <strong>جنيه</strong></td></tr>\n";
-    php += "          <tr><th><label>مغير اللغات بأعلام الدول:</label></th><td><input type='checkbox' name='telewoo_opt_lang' value='yes' <?php checked(get_option('telewoo_opt_lang', '" + (enableMultiLanguage ? "yes" : "no") + "'), 'yes'); ?> /> <strong>إظهار مغير اللغات العائم</strong></td></tr>\n";
-    php += "          <tr><th><label>زر الواتساب العائم:</label></th><td><input type='checkbox' name='telewoo_opt_whatsapp' value='yes' <?php checked(get_option('telewoo_opt_whatsapp', '" + (enableWhatsappFloat ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل زر الواتساب</strong><br><br><input type='text' name='telewoo_whatsapp_number' value='<?php echo esc_attr(get_option('telewoo_whatsapp_number', '" + esc(whatsappFloatNumber) + "')); ?>' class='regular-text' /></td></tr>\n";
-    php += "          <tr><th><label>شريط الموبايل الثابت:</label></th><td><input type='checkbox' name='telewoo_opt_sticky' value='yes' <?php checked(get_option('telewoo_opt_sticky', '" + (enableStickyMobileBar ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل شريط الموبايل</strong><br><br><input type='text' name='telewoo_sticky_text' value='<?php echo esc_attr(get_option('telewoo_sticky_text', '" + esc(stickyBarText) + "')); ?>' class='regular-text' /></td></tr>\n";
-    php += "          <tr><th><label>حماية الكود ومنع كليك يمين:</label></th><td><input type='checkbox' name='telewoo_opt_norightclick' value='yes' <?php checked(get_option('telewoo_opt_norightclick', '" + (disableRightClick ? "yes" : "no") + "'), 'yes'); ?> /> <strong>تفعيل الحماية</strong></td></tr>\n";
+    php += "          <tr><th><label>تفعيل إنستا باي (InstaPay):</label></th><td><input type='checkbox' name='telewoo_opt_instapay' value='yes' <?php checked(get_option('telewoo_opt_instapay', '' + (enableInstaPay ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل البوابة</strong><br><br><input type='text' name='telewoo_instapay_title' value='<?php echo esc_attr(get_option('telewoo_instapay_title', '' + esc(instapayTitle) + '')); ?>' class='regular-text' placeholder='عنوان البوابة' /><br><input type='text' name='telewoo_instapay_handle' value='<?php echo esc_attr(get_option('telewoo_instapay_handle', '' + esc(instapayHandle) + '')); ?>' class='regular-text' placeholder='معرف InstaPay Handle' /></td></tr>\n";
+    php += "          <tr><th><label>تفعيل فودافون كاش:</label></th><td><input type='checkbox' name='telewoo_opt_vodafone' value='yes' <?php checked(get_option('telewoo_opt_vodafone', '' + (enableMobileWallets ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل المحافظ</strong><br><br><input type='text' name='telewoo_vodafone_number' value='<?php echo esc_attr(get_option('telewoo_vodafone_number', '' + esc(vodafoneNumber) + '')); ?>' class='regular-text' placeholder='رقم المحفظة' /></td></tr>\n";
+    php += "          <tr><th><label>تفعيل التحويل البنكي:</label></th><td><input type='checkbox' name='telewoo_opt_bank' value='yes' <?php checked(get_option('telewoo_opt_bank', '' + (enableBankTransfer ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل التحويل البنكي</strong><br><br><input type='text' name='telewoo_bank_iban' value='<?php echo esc_attr(get_option('telewoo_bank_iban', '' + esc(bankIban) + '')); ?>' class='regular-text' placeholder='رقم الايبان IBAN' /></td></tr>\n";
+    php += "          <tr><th><label>تفعيل الشحن السريع:</label></th><td><input type='checkbox' name='telewoo_opt_express' value='yes' <?php checked(get_option('telewoo_opt_express', '' + (enableExpressShipping ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل الشحن السريع</strong><br><br><input type='text' name='telewoo_express_price' value='<?php echo esc_attr(get_option('telewoo_express_price', '' + esc(expressPrice) + '')); ?>' class='small-text' /> <strong>جنيه</strong></td></tr>\n";
+    php += "          <tr><th><label>مغير اللغات بأعلام الدول:</label></th><td><input type='checkbox' name='telewoo_opt_lang' value='yes' <?php checked(get_option('telewoo_opt_lang', '' + (enableMultiLanguage ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>إظهار مغير اللغات العائم</strong></td></tr>\n";
+    php += "          <tr><th><label>زر الواتساب العائم:</label></th><td><input type='checkbox' name='telewoo_opt_whatsapp' value='yes' <?php checked(get_option('telewoo_opt_whatsapp', '' + (enableWhatsappFloat ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل زر الواتساب</strong><br><br><input type='text' name='telewoo_whatsapp_number' value='<?php echo esc_attr(get_option('telewoo_whatsapp_number', '' + esc(whatsappFloatNumber) + '')); ?>' class='regular-text' /></td></tr>\n";
+    php += "          <tr><th><label>شريط الموبايل الثابت:</label></th><td><input type='checkbox' name='telewoo_opt_sticky' value='yes' <?php checked(get_option('telewoo_opt_sticky', '' + (enableStickyMobileBar ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل شريط الموبايل</strong><br><br><input type='text' name='telewoo_sticky_text' value='<?php echo esc_attr(get_option('telewoo_sticky_text', '' + esc(stickyBarText) + '')); ?>' class='regular-text' /></td></tr>\n";
+    php += "          <tr><th><label>حماية الكود ومنع كليك يمين:</label></th><td><input type='checkbox' name='telewoo_opt_norightclick' value='yes' <?php checked(get_option('telewoo_opt_norightclick', '' + (disableRightClick ? 'yes' : 'no') + ''), 'yes'); ?> /> <strong>تفعيل الحماية</strong></td></tr>\n";
     php += "        </table>\n";
     php += "      </div>\n";
     php += "      <p class='submit'><input type='submit' name='telewoo_save_settings' class='button-primary button-hero' value='💾 حفظ وتطبيق كافة الإعدادات أونلاين' /></p>\n";
@@ -310,13 +265,13 @@ export function PluginBuilderTab() {
     php += "    public function __construct() {\n";
     php += "      $this->id = 'telewoo_instapay'; $this->icon = ''; $this->has_fields = false;\n";
     php += "      $this->method_title = 'إنستا باي (InstaPay)'; $this->method_description = 'الدفع الفوري المباشر عبر تطبيق InstaPay';\n";
-    php += "      $this->title = get_option('telewoo_instapay_title', '" + esc(instapayTitle) + "');\n";
-    php += "      $handle = get_option('telewoo_instapay_handle', '" + esc(instapayHandle) + "');\n";
-    php += "      $this->description = '⚡ معرف InstaPay: <code>' . esc_html($handle) . '</code><br><br>" + esc(instapayInstructions) + "';\n";
+    php += "      $this->title = get_option('telewoo_instapay_title', '' + esc(instapayTitle) + '');\n";
+    php += "      $handle = get_option('telewoo_instapay_handle', '' + esc(instapayHandle) + '');\n";
+    php += "      $this->description = '⚡ معرف InstaPay: <code>' . esc_html($handle) . '</code><br><br>' + esc(instapayInstructions) + '';\n";
     php += "      $this->supports = array('products'); $this->init_form_fields(); $this->init_settings();\n";
-    php += "      $this->enabled = get_option('telewoo_opt_instapay', '" + (enableInstaPay ? "yes" : "no") + "');\n";
+    php += "      $this->enabled = get_option('telewoo_opt_instapay', '' + (enableInstaPay ? 'yes' : 'no') + '');\n";
     php += "    }\n";
-    php += "    public function is_available() { return get_option('telewoo_opt_instapay', '" + (enableInstaPay ? "yes" : "no") + "') === 'yes'; }\n";
+    php += "    public function is_available() { return get_option('telewoo_opt_instapay', '' + (enableInstaPay ? 'yes' : 'no') + '') === 'yes'; }\n";
     php += "    public function process_payment($order_id) {\n";
     php += "      $order = wc_get_order($order_id); $order->update_status('on-hold', 'بانتظار تحويل InstaPay');\n";
     php += "      WC()->cart->empty_cart(); return array('result' => 'success', 'redirect' => $this->get_return_url($order));\n";
@@ -327,13 +282,13 @@ export function PluginBuilderTab() {
     php += "    public function __construct() {\n";
     php += "      $this->id = 'telewoo_vodafone'; $this->icon = ''; $this->has_fields = false;\n";
     php += "      $this->method_title = 'فودافون كاش / المحافظ'; $this->method_description = 'الدفع الإلكتروني عبر المحافظ';\n";
-    php += "      $this->title = '" + esc(walletsTitle) + "';\n";
-    php += "      $voda = get_option('telewoo_vodafone_number', '" + esc(vodafoneNumber) + "');\n";
-    php += "      $this->description = '📱 رقم المحفظة: <code>' . esc_html($voda) . '</code><br><br>" + esc(walletsInstructions) + "';\n";
+    php += "      $this->title = '' + esc(walletsTitle) + '';\n";
+    php += "      $voda = get_option('telewoo_vodafone_number', '' + esc(vodafoneNumber) + '');\n";
+    php += "      $this->description = '📱 رقم المحفظة: <code>' . esc_html($voda) . '</code><br><br>' + esc(walletsInstructions) + '';\n";
     php += "      $this->supports = array('products'); $this->init_form_fields(); $this->init_settings();\n";
-    php += "      $this->enabled = get_option('telewoo_opt_vodafone', '" + (enableMobileWallets ? "yes" : "no") + "');\n";
+    php += "      $this->enabled = get_option('telewoo_opt_vodafone', '' + (enableMobileWallets ? 'yes' : 'no') + '');\n";
     php += "    }\n";
-    php += "    public function is_available() { return get_option('telewoo_opt_vodafone', '" + (enableMobileWallets ? "yes" : "no") + "') === 'yes'; }\n";
+    php += "    public function is_available() { return get_option('telewoo_opt_vodafone', '' + (enableMobileWallets ? 'yes' : 'no') + '') === 'yes'; }\n";
     php += "    public function process_payment($order_id) {\n";
     php += "      $order = wc_get_order($order_id); $order->update_status('on-hold', 'بانتظار تحويل فودافون كاش');\n";
     php += "      WC()->cart->empty_cart(); return array('result' => 'success', 'redirect' => $this->get_return_url($order));\n";
@@ -344,13 +299,13 @@ export function PluginBuilderTab() {
     php += "    public function __construct() {\n";
     php += "      $this->id = 'telewoo_bank'; $this->icon = ''; $this->has_fields = false;\n";
     php += "      $this->method_title = 'التحويل البنكي المباشر';\n";
-    php += "      $this->title = '" + esc(bankTitle) + "';\n";
-    php += "      $iban = get_option('telewoo_bank_iban', '" + esc(bankIban) + "');\n";
-    php += "      $this->description = '🏦 رقم الايبان (IBAN): <code>' . esc_html($iban) . '</code><br><br>" + esc(bankInstructions) + "';\n";
+    php += "      $this->title = '' + esc(bankTitle) + '';\n";
+    php += "      $iban = get_option('telewoo_bank_iban', '' + esc(bankIban) + '');\n";
+    php += "      $this->description = '🏦 رقم الايبان (IBAN): <code>' . esc_html($iban) . '</code><br><br>' + esc(bankInstructions) + '';\n";
     php += "      $this->supports = array('products'); $this->init_form_fields(); $this->init_settings();\n";
-    php += "      $this->enabled = get_option('telewoo_opt_bank', '" + (enableBankTransfer ? "yes" : "no") + "');\n";
+    php += "      $this->enabled = get_option('telewoo_opt_bank', '' + (enableBankTransfer ? 'yes' : 'no') + '');\n";
     php += "    }\n";
-    php += "    public function is_available() { return get_option('telewoo_opt_bank', '" + (enableBankTransfer ? "yes" : "no") + "') === 'yes'; }\n";
+    php += "    public function is_available() { return get_option('telewoo_opt_bank', '' + (enableBankTransfer ? 'yes' : 'no') + '') === 'yes'; }\n";
     php += "    public function process_payment($order_id) {\n";
     php += "      $order = wc_get_order($order_id); $order->update_status('on-hold', 'بانتظار التحويل البنكي');\n";
     php += "      WC()->cart->empty_cart(); return array('result' => 'success', 'redirect' => $this->get_return_url($order));\n";
@@ -359,11 +314,11 @@ export function PluginBuilderTab() {
 
     customGateways.forEach((cg) => {
       const className = "WC_Gateway_" + cg.id;
-      php += "  class " + className + " extends WC_Payment_Gateway {\n";
+      php += "  class ' + className + ' extends WC_Payment_Gateway {\n";
       php += "    public function __construct() {\n";
-      php += "      $this->id = '" + cg.id + "'; $this->method_title = '" + esc(cg.title) + "';\n";
-      php += "      $this->title = '" + esc(cg.title) + "'; $this->has_fields = false;\n";
-      php += "      $this->description = '💳 الحساب/الرقم: <code>" + esc(cg.account) + "</code><br><br>" + esc(cg.instructions) + "';\n";
+      php += "      $this->id = '' + cg.id + ''; $this->method_title = '' + esc(cg.title) + '';\n";
+      php += "      $this->title = '' + esc(cg.title) + ''; $this->has_fields = false;\n";
+      php += "      $this->description = '💳 الحساب/الرقم: <code>' + esc(cg.account) + '</code><br><br>' + esc(cg.instructions) + '';\n";
       php += "      $this->supports = array('products'); $this->init_form_fields(); $this->init_settings(); $this->enabled = 'yes';\n";
       php += "    }\n";
       php += "    public function is_available() { return true; }\n";
@@ -378,7 +333,7 @@ export function PluginBuilderTab() {
     php += "    $methods[] = 'WC_Gateway_TeleWoo_InstaPay';\n";
     php += "    $methods[] = 'WC_Gateway_TeleWoo_Vodafone';\n";
     php += "    $methods[] = 'WC_Gateway_TeleWoo_Bank';\n";
-    customGateways.forEach((cg) => { php += "    $methods[] = 'WC_Gateway_" + cg.id + "';\n"; });
+    customGateways.forEach((cg) => { php += "    $methods[] = 'WC_Gateway_' + cg.id + '';\n"; });
     php += "    return $methods;\n";
     php += "  });\n";
     php += "}, 20);\n\n";
@@ -389,24 +344,24 @@ export function PluginBuilderTab() {
     php += "  if (!class_exists('WC_Shipping_Method')) return;\n";
     php += "  class WC_TeleWoo_Express_Shipping extends WC_Shipping_Method {\n";
     php += "    public function __construct() {\n";
-    php += "      $this->id = 'telewoo_express'; $this->title = get_option('telewoo_express_title', '" + esc(expressTitle) + "');\n";
-    php += "      $this->method_title = 'الشحن السريع TeleWoo'; $this->enabled = get_option('telewoo_opt_express', '" + (enableExpressShipping ? "yes" : "no") + "');\n";
+    php += "      $this->id = 'telewoo_express'; $this->title = get_option('telewoo_express_title', '' + esc(expressTitle) + '');\n";
+    php += "      $this->method_title = 'الشحن السريع TeleWoo'; $this->enabled = get_option('telewoo_opt_express', '' + (enableExpressShipping ? 'yes' : 'no') + '');\n";
     php += "    }\n";
     php += "    public function calculate_shipping($package = array()) {\n";
-    php += "      $cost = (float) get_option('telewoo_express_price', " + (parseFloat(expressPrice) || 0) + ");\n";
+    php += "      $cost = (float) get_option('telewoo_express_price', ' + (parseFloat(expressPrice) || 0) + ');\n";
     php += "      $this->add_rate(array('id' => $this->id, 'label' => $this->title, 'cost' => $cost));\n";
     php += "    }\n";
     php += "  }\n";
 
     customShippingRates.forEach((cs) => {
       const className = "WC_Shipping_" + cs.id;
-      php += "  class " + className + " extends WC_Shipping_Method {\n";
+      php += "  class ' + className + ' extends WC_Shipping_Method {\n";
       php += "    public function __construct() {\n";
-      php += "      $this->id = '" + cs.id + "'; $this->title = '" + esc(cs.title) + "';\n";
-      php += "      $this->method_title = '" + esc(cs.title) + "'; $this->enabled = 'yes';\n";
+      php += "      $this->id = '' + cs.id + ''; $this->title = '' + esc(cs.title) + '';\n";
+      php += "      $this->method_title = '' + esc(cs.title) + ''; $this->enabled = 'yes';\n";
       php += "    }\n";
       php += "    public function calculate_shipping($package = array()) {\n";
-      php += "      $this->add_rate(array('id' => $this->id, 'label' => $this->title, 'cost' => " + (parseFloat(cs.cost) || 0) + "));\n";
+      php += "      $this->add_rate(array('id' => $this->id, 'label' => $this->title, 'cost' => ' + (parseFloat(cs.cost) || 0) + '));\n";
       php += "    }\n";
       php += "  }\n";
     });
@@ -415,20 +370,39 @@ export function PluginBuilderTab() {
 
     php += "add_filter('woocommerce_shipping_methods', function($m) {\n";
     php += "  $m['telewoo_express'] = 'WC_TeleWoo_Express_Shipping';\n";
-    customShippingRates.forEach((cs) => { php += "  $m['" + cs.id + "'] = 'WC_Shipping_" + cs.id + "';\n"; });
+    customShippingRates.forEach((cs) => { php += "  $m['' + cs.id + ''] = 'WC_Shipping_' + cs.id + '';\n"; });
     php += "  return $m;\n";
     php += "});\n\n";
 
-    // 4. FRONT-END ASSETS INJECTION (CSS & JS & MODULES)
-    php += "// ==================== 4. FRONT-END ASSETS INJECTION ====================\n";
-    php += "add_action('wp_head', function() {\n";
-    php += "  $css = get_option('telewoo_ai_css', '');\\n";
-    php += "  if ($css) echo '<style id=\\'telewoo-ai-css\\'>' . $css . '</style>';\\n";
-    php += "});\\n\\n";
+    // 4. REST API ENDPOINTS
+    if (enableRestApiEndpoint) {
+      php += "// ==================== 4. REST API ENDPOINTS ====================\n";
+      php += "add_action('rest_api_init', function() {\n";
+      php += "  register_rest_route('telewoo/v1', '/info', array(\n";
+      php += "    'methods' => 'GET',\n";
+      php += "    'callback' => function() {\n";
+      php += "      return new WP_REST_Response(array(\n";
+      php += "        'status' => 'active',\n";
+      php += "        'plugin' => '' + safeName + '',\n";
+      php += "        'version' => '6.0.0',\n";
+      php += "        'gateways' => array('instapay', 'vodafone', 'bank'),\n";
+      php += "      ), 200);\n";
+      php += "    },\n";
+      php += "    'permission_callback' => '__return_true',\n";
+      php += "  ));\n";
+      php += "});\n\n";
+    }
 
-    php += "add_action('wp_footer', function() {\\n";
-    php += "  $js = get_option('telewoo_ai_js', '');\\n";
-    php += "  if ($js) echo '<script id=\\'telewoo-ai-js\\'>' . $js . '</script>';\\n";
+    // 5. FRONT-END ASSETS INJECTION (CSS & JS & MODULES)
+    php += "// ==================== 5. FRONT-END ASSETS INJECTION ====================\n";
+    php += "add_action('wp_head', function() {\n";
+    php += "  $css = get_option('telewoo_ai_css', '');\n";
+    php += "  if ($css) echo '<style id='telewoo-ai-css'>' . $css . '</style>';\n";
+    php += "});\n\n";
+
+    php += "add_action('wp_footer', function() {\n";
+    php += "  $js = get_option('telewoo_ai_js', '');\n";
+    php += "  if ($js) echo '<script id='telewoo-ai-js'>' . $js . '</script>';\n";
 
     if (enableMultiLanguage && selectedLanguages.length > 0) {
       php += "  if (get_option('telewoo_opt_lang', 'yes') === 'yes') {\n";
@@ -437,7 +411,7 @@ export function PluginBuilderTab() {
       selectedLanguages.forEach((code) => {
         const langObj = AVAILABLE_LANGUAGES.find((l) => l.code === code);
         if (langObj) {
-          php += "      <button onclick=\"document.documentElement.lang='" + code + "';document.documentElement.dir='" + (langObj.rtl ? "rtl" : "ltr") + "';\" style='background:transparent;border:none;cursor:pointer;font-size:18px;' title='" + langObj.name + "'>" + langObj.flag + "</button>\n";
+          php += "      <button onclick='document.documentElement.lang='' + code + '';document.documentElement.dir='' + (langObj.rtl ? 'rtl' : 'ltr') + '';' style='background:transparent;border:none;cursor:pointer;font-size:18px;' title='' + langObj.name + ''>' + langObj.flag + '</button>\n";
         }
       });
       php += "    </div>\n";
@@ -447,69 +421,71 @@ export function PluginBuilderTab() {
 
     if (enableWhatsappFloat) {
       php += "  if (get_option('telewoo_opt_whatsapp', 'yes') === 'yes') {\n";
-      php += "    $wa = get_option('telewoo_whatsapp_number', '" + esc(whatsappFloatNumber) + "');\n";
+      php += "    $wa = get_option('telewoo_whatsapp_number', '' + esc(whatsappFloatNumber) + '');\n";
       php += "    ?>\n";
-      php += "    <a href='https://wa.me/" + whatsappFloatNumber.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent(whatsappFloatMsg) + "' target='_blank' style='position:fixed;bottom:20px;left:20px;z-index:999999;background:#25d366;color:#fff;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.25);font-size:28px;text-decoration:none;'>💬</a>\n";
+      php += "    <a href='https://wa.me/' + whatsappFloatNumber.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(whatsappFloatMsg) + '' target='_blank' style='position:fixed;bottom:20px;left:20px;z-index:999999;background:#25d366;color:#fff;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.25);font-size:28px;text-decoration:none;'>💬</a>\n";
       php += "    <?php\n";
       php += "  }\n";
     }
 
     if (enableStickyMobileBar) {
       php += "  if (get_option('telewoo_opt_sticky', 'yes') === 'yes') {\n";
-      php += "    $st = get_option('telewoo_sticky_text', '" + esc(stickyBarText) + "');\n";
+      php += "    $st = get_option('telewoo_sticky_text', '' + esc(stickyBarText) + '');\n";
       php += "    ?>\n";
-      php += "    <div style='position:fixed;bottom:0;left:0;right:0;z-index:999990;background:#1e293b;color:#fff;padding:12px;text-align:center;font-weight:bold;display:flex;align-items:center;justify-content:space-between;'>" + esc(stickyBarText) + " <a href='/checkout' style='background:#10b981;color:#fff;padding:6px 16px;border-radius:6px;text-decoration:none;'>طلب سريع 🛒</a></div>\n";
+      php += "    <div style='position:fixed;bottom:0;left:0;right:0;z-index:999990;background:#1e293b;color:#fff;padding:12px;text-align:center;font-weight:bold;display:flex;align-items:center;justify-content:space-between;'>' + esc(stickyBarText) + ' <a href='/checkout' style='background:#10b981;color:#fff;padding:6px 16px;border-radius:6px;text-decoration:none;'>طلب سريع 🛒</a></div>\n";
       php += "    <?php\n";
       php += "  }\n";
     }
 
     if (disableRightClick) {
       php += "  if (get_option('telewoo_opt_norightclick', 'yes') === 'yes') {\n";
-      php += "    echo '<script>document.addEventListener(\\'contextmenu\\',function(e){e.preventDefault();});</script>';\n";
+      php += "    echo '<script>document.addEventListener(\'contextmenu\',function(e){e.preventDefault();});</script>';\n";
       php += "  }\n";
     }
 
     php += "});\n\n";
 
     if (customPromptText) {
-      php += "// ==================== AI CUSTOM PROMPT REQUEST ====================\n";
-      php += "// User Requested Instruction: " + esc(customPromptText) + "\n\n";
+      php += "// ==================== AI CUSTOM PROMPT INSTRUCTION ====================\n";
+      php += "// Instruction: ' + esc(customPromptText) + '\n\n";
     }
 
     return php;
   };
 
-    // ====== HANDLE GENERATE AND AUTO-UPDATE ======
-  const handleGenerateAndDeploy = async (autoDeploy = false) => {
+  // ====== HANDLE GENERATE AND AUTO-UPDATE ======
+  const handleGenerateAndDeploy = async (autoDeploy = false, targetBasePlugin: any = null) => {
     if (autoDeploy) setAutoDeploying(true);
     else setGenerating(true);
 
     try {
-      const customPhp = generateSuitePhpCode(prompt);
+      const pluginTitle = targetBasePlugin ? targetBasePlugin.name : "TeleWoo Ultimate 13-Tab Suite";
+      const customPhp = generateSuitePhpCode(pluginTitle, prompt);
       
-      // Build comprehensive prompt for AI combining the 13-tab matrix states & custom text prompt
-      let matrixSummary = "مصفوفة تفعيل المزايا المحددة:\n";
-      matrixSummary += `- InstaPay: ${enableInstaPay ? "مفعل (" + instapayTitle + " - " + instapayHandle + ")" : "معطل"}\n`;
-      matrixSummary += `- فودافون كاش والمحافظ: ${enableMobileWallets ? "مفعل (" + walletsTitle + " - " + vodafoneNumber + ")" : "معطل"}\n`;
-      matrixSummary += `- التحويل البنكي: ${enableBankTransfer ? "مفعل (" + bankName + ")" : "معطل"}\n`;
-      matrixSummary += `- الشحن السريع: ${enableExpressShipping ? "مفعل (" + expressTitle + " - " + expressPrice + "ج)" : "معطل"}\n`;
-      matrixSummary += `- مغير اللغات بأعلام الدول: ${enableMultiLanguage ? "مفعل (اللغات: " + selectedLanguages.join(", ") + ")" : "معطل"}\n`;
-      matrixSummary += `- زر الواتساب العائم: ${enableWhatsappFloat ? "مفعل (" + whatsappFloatNumber + ")" : "معطل"}\n`;
-      matrixSummary += `- شريط الموبايل الثابت: ${enableStickyMobileBar ? "مفعل (" + stickyBarText + ")" : "معطل"}\n`;
-      if (customGateways.length > 0) {
-        matrixSummary += `- بوابات دفع مخصصة إضافية: ${customGateways.map(g => g.title + " (" + g.account + ")").join(", ")}\n`;
-      }
-      if (customShippingRates.length > 0) {
-        matrixSummary += `- طرق شحن مخصصة إضافية: ${customShippingRates.map(s => s.title + " (" + s.cost + "ج)").join(", ")}\n`;
-      }
+      let matrixSummary = "مصفوفة تفعيل المزايا الـ 13 المحددة:\n";
+      matrixSummary += "- InstaPay: " + (enableInstaPay ? "مفعل (" + instapayTitle + ")" : "معطل") + "\n";
+      matrixSummary += "- فودافون كاش والمحافظ: " + (enableMobileWallets ? "مفعل (" + walletsTitle + ")" : "معطل") + "\n";
+      matrixSummary += "- التحويل البنكي: " + (enableBankTransfer ? "مفعل (" + bankTitle + ")" : "معطل") + "\n";
+      matrixSummary += "- الشحن السريع: " + (enableExpressShipping ? "مفعل (" + expressTitle + ")" : "معطل") + "\n";
+      matrixSummary += "- مغير اللغات بأعلام الدول: " + (enableMultiLanguage ? "مفعل (" + selectedLanguages.join(", ") + ")" : "معطل") + "\n";
+      matrixSummary += "- زر الواتساب العائم: " + (enableWhatsappFloat ? "مفعل (" + whatsappFloatNumber + ")" : "معطل") + "\n";
+      matrixSummary += "- شريط الموبايل الثابت: " + (enableStickyMobileBar ? "مفعل" : "معطل") + "\n";
+      matrixSummary += "- حماية عدم النسخ وكليك يمين: " + (disableRightClick ? "مفعل" : "معطل") + "\n";
+      matrixSummary += "- نقطة REST API: " + (enableRestApiEndpoint ? "مفعل" : "معطل") + "\n";
 
-      const activePrompt = `أنشئ ووحد إضافة WooCommerce شاملة وااحترافية فائقة الأداء.\n${matrixSummary}\nملاحظات وتوجيهات مخصصة إضافية للمستخدم:\n${prompt.trim() || "لا توجد ملاحظات إضافية، اعتمد الإعدادات المحددة بالأعلى."}`;
+      const activePrompt = "أنشئ ووحد إضافة WooCommerce شاملة ومحترفة تعمل كـ Plugin قياسي كامل.\n" + matrixSummary + "\nتوجيهات إضافية:\n" + (prompt.trim() || "اعتمد كافة المزايا المحددة بالإعدادات وتأكد من إنشاء لوحة تحكم سريعة.");
 
-      const r: any = await invokeFn("wp-plugin-builder", {
+      const bodyPayload: any = {
         prompt: activePrompt,
         context: "WooCommerce Arabic RTL Suite Engine",
         extra_php: customPhp,
-      });
+      };
+
+      if (targetBasePlugin?.id) {
+        bodyPayload.base_plugin_id = targetBasePlugin.id;
+      }
+
+      const r: any = await invokeFn("wp-plugin-builder", bodyPayload);
 
       await loadPlugins();
 
@@ -530,12 +506,12 @@ export function PluginBuilderTab() {
           downloadResult(r);
         } else {
           toast({
-            title: `⚡ تم إصدار وتثبيت تحديث ${r.name} v${r.version} تلقائياً على متجرك!`,
+            title: "⚡ تم إصدار وتثبيت تحديث " + r.name + " v" + r.version + " تلقائياً على متجرك!",
             description: "تم دمج كافة البوابات وطرق الشحن ومغير اللغات ولوحة الإدارة بنجاح."
           });
         }
       } else {
-        toast({ title: `تم بناء الإضافة ${r.name} v${r.version} بنجاح!`, description: r.changelog });
+        toast({ title: "تم بناء الإضافة " + r.name + " v" + r.version + " بنجاح!", description: r.changelog });
         downloadResult(r);
       }
     } catch (e: any) {
@@ -546,13 +522,80 @@ export function PluginBuilderTab() {
     }
   };
 
+  // ====== HANDLE UPDATE EXISTING PLUGIN WITH AI PROMPT ======
+  const handleUpdatePluginWithAI = async (plugin: any) => {
+    if (!editPrompt.trim()) {
+      toast({ title: "الرجاء إدخال وصف التعديل المطلوب بالذكاء الاصطناعي", variant: "destructive" });
+      return;
+    }
+    setUpdatingPlugin(true);
+    try {
+      const customPhp = generateSuitePhpCode(plugin.name, editPrompt);
+      const r: any = await invokeFn("wp-plugin-builder", {
+        prompt: editPrompt,
+        base_plugin_id: plugin.id,
+        context: "Update existing WordPress plugin with AI instructions",
+        extra_php: customPhp,
+      });
+
+      await loadPlugins();
+
+      toast({ title: "🚀 تم تحديث الإضافة " + r.name + " للنسخة v" + r.version + " بالذكاء الاصطناعي!" });
+
+      if (r?.zip_base64) {
+        downloadResult(r);
+      }
+      setEditModalPlugin(null);
+      setEditPrompt("");
+    } catch (e: any) {
+      toast({ title: "فشل تحديث الإضافة", description: e.message, variant: "destructive" });
+    } finally {
+      setUpdatingPlugin(false);
+    }
+  };
+
+  // ====== DELETE PLUGIN ======
+  const handleDeletePlugin = async (pluginId: string) => {
+    try {
+      await supabase.from("wp_plugins").delete().eq("id", pluginId);
+      toast({ title: "تم حذف الإضافة بنجاح" });
+      await loadPlugins();
+    } catch (e: any) {
+      toast({ title: "فشل حذف الإضافة", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const openCodeModal = async (plugin: any) => {
+    setViewCodePlugin(plugin);
+    setLoadingCode(true);
+    try {
+      const { data: latestVer } = await supabase
+        .from("wp_plugin_versions")
+        .select("*")
+        .eq("plugin_id", plugin.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestVer?.php_code) {
+        setViewingPhpCode(latestVer.php_code);
+      } else {
+        setViewingPhpCode("<?php\n/**\n * Plugin Name: " + plugin.name + "\n * Description: " + (plugin.description || "") + "\n * Version: " + plugin.current_version + "\n */\n\nif (!defined('ABSPATH')) exit;\n");
+      }
+    } catch (e: any) {
+      setViewingPhpCode("<?php\n// " + plugin.name + " v" + plugin.current_version + "\n");
+    } finally {
+      setLoadingCode(false);
+    }
+  };
+
   const downloadResult = (r: any) => {
     if (!r?.zip_base64) return;
     const blob = b64ToBlob(r.zip_base64);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = r.zip_filename || `${r.slug || "telewoo-plugin"}-${r.version || "1.0.0"}.zip`;
+    a.download = r.zip_filename || ((r.slug || "telewoo-plugin") + "-" + (r.version || "1.0.0") + ".zip");
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -569,11 +612,11 @@ export function PluginBuilderTab() {
               <div className="flex items-center justify-center md:justify-start gap-2">
                 <Package className="w-7 h-7 text-indigo-400 animate-pulse" />
                 <h2 className="text-2xl font-black bg-gradient-to-l from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">
-                  مولد الإضافات الموحد والذكي (13-Tab Suite & Admin AI Engine)
+                  منصة بناء وتحديث إضافات وردبريس التفاعلية (13-Tab Suite & AI Platform)
                 </h2>
               </div>
-              <p className="text-sm text-indigo-200/80 max-w-2xl">
-                إمكانية إضافة أي عدد من بوابات الدفع وطرق الشحن المخصصة، مغير اللغات بأعلام الدول، وتوليد لوحة تحكم كاملة داخل ووردبريس مع محرك Gemini AI للتعديل أونلاين!
+              <p className="text-sm text-indigo-200/80 max-w-3xl">
+                بناء إضافات WordPress كاملة ومستقلة تعتمد على محتوى وتعديلات الـ 13 تاب! مع تفعيل وتعطيل المزايا، توليد لوحة تحكم داخل وردبريس، وإمكانية تعديل وتحديث الإضافة بالذكاء الاصطناعي دون إعادتها من الصفر.
               </p>
             </div>
             <Badge className="bg-indigo-600/30 text-indigo-300 border-indigo-400/40 px-3 py-1.5 text-xs font-bold gap-1.5 shadow">
@@ -583,22 +626,25 @@ export function PluginBuilderTab() {
         </CardContent>
       </Card>
 
-      {/* CATEGORIZED INTERACTIVE SUITE MATRIX */}
+      {/* 13-TAB INTERACTIVE MATRIX FEATURE SELECTORS */}
       <Card className="border-slate-800 bg-slate-900/90 shadow-2xl">
         <CardHeader className="pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-indigo-400" />
-            <CardTitle className="text-lg font-bold text-white">مصفوفة المزايا التفاعلية وإضافة البوابات والشحن المخصص</CardTitle>
+            <CardTitle className="text-lg font-bold text-white">مصفوفة اختيار ميزات التبويبات الـ 13 للـ Plugin</CardTitle>
           </div>
+          <CardDescription className="text-slate-400 text-xs">
+            حدد الميزات التي ترغب بتضمينها في الإضافة المنشأة. كل ميزة مفعلة ستعمل وتظهر خياراتها تلقائياً داخل صفحة إعدادات الإضافة بوردبريس.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-4 space-y-4">
-          <Accordion type="multiple" defaultValue={["gateways", "shipping", "lang", "sales"]} className="w-full space-y-2">
+          <Accordion type="multiple" defaultValue={["gateways", "shipping", "lang", "sales", "security", "api"]} className="w-full space-y-2">
             
-            {/* 1. PAYMENT GATEWAYS & DYNAMIC CUSTOM GATEWAYS */}
+            {/* 1. PAYMENT GATEWAYS */}
             <AccordionItem value="gateways" className="border border-slate-800 rounded-lg bg-slate-950/60 px-4">
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-center gap-2 text-indigo-400 font-bold text-base">
-                  <CreditCard className="w-5 h-5" /> 💳 بوابات الدفع التفاعلية والمخصصة
+                  <CreditCard className="w-5 h-5" /> 💳 1. بوابات الدفع التفاعلية والمخصصة
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pt-2 pb-4 text-slate-200">
@@ -652,7 +698,7 @@ export function PluginBuilderTab() {
                           const updated = [...customGateways];
                           updated[idx].account = e.target.value;
                           setCustomGateways(updated);
-                        }} placeholder="رقم الحساب / المحفظة / المعرف" className="bg-slate-950 text-xs border-slate-800 font-mono" />
+                        }} placeholder="رقم الحساب / المحفظة" className="bg-slate-950 text-xs border-slate-800 font-mono" />
                         <Textarea value={cg.instructions} onChange={(e) => {
                           const updated = [...customGateways];
                           updated[idx].instructions = e.target.value;
@@ -663,7 +709,6 @@ export function PluginBuilderTab() {
                   ))}
                 </div>
 
-                {/* ADD DYNAMIC GATEWAY BUTTON */}
                 <div className="pt-2">
                   <Button size="sm" onClick={addCustomGateway} variant="outline" className="border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/50 text-xs font-bold gap-1.5">
                     <Plus className="w-4 h-4 text-indigo-400" /> ➕ إضافة بوابة دفع مخصصة جديدة
@@ -672,11 +717,11 @@ export function PluginBuilderTab() {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 2. SHIPPING METHODS & DYNAMIC CUSTOM RATES */}
+            {/* 2. SHIPPING METHODS */}
             <AccordionItem value="shipping" className="border border-slate-800 rounded-lg bg-slate-950/60 px-4">
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-base">
-                  <Truck className="w-5 h-5" /> 🚚 طرق الشحن المخصصة والديناميكية
+                  <Truck className="w-5 h-5" /> 🚚 2. طرق الشحن المخصصة والديناميكية
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pt-2 pb-4 text-slate-200">
@@ -694,7 +739,6 @@ export function PluginBuilderTab() {
                     )}
                   </div>
 
-                  {/* Dynamic Custom Shipping Rates List */}
                   {customShippingRates.map((cs, idx) => (
                     <div key={cs.id} className="p-3 border border-emerald-500/40 rounded-lg bg-emerald-950/20 space-y-2">
                       <div className="flex items-center justify-between">
@@ -708,18 +752,17 @@ export function PluginBuilderTab() {
                           const updated = [...customShippingRates];
                           updated[idx].title = e.target.value;
                           setCustomShippingRates(updated);
-                        }} placeholder="عنوان طريقة الشحن (مثلاً: شحن للمحافظات)" className="bg-slate-950 text-xs border-slate-800" />
+                        }} placeholder="عنوان طريقة الشحن" className="bg-slate-950 text-xs border-slate-800" />
                         <Input value={cs.cost} onChange={(e) => {
                           const updated = [...customShippingRates];
                           updated[idx].cost = e.target.value;
                           setCustomShippingRates(updated);
-                        }} placeholder="التكلفة (مثلاً: 45)" className="bg-slate-950 text-xs border-slate-800 font-mono" />
+                        }} placeholder="التكلفة" className="bg-slate-950 text-xs border-slate-800 font-mono" />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* ADD DYNAMIC SHIPPING BUTTON */}
                 <div className="pt-2">
                   <Button size="sm" onClick={addCustomShippingRate} variant="outline" className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/50 text-xs font-bold gap-1.5">
                     <Plus className="w-4 h-4 text-emerald-400" /> ➕ إضافة طريقة شحن مخصصة جديدة
@@ -728,11 +771,11 @@ export function PluginBuilderTab() {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 3. MULTI-LANGUAGE SWITCHER WITH FLAGS */}
+            {/* 3. MULTI-LANGUAGE SWITCHER */}
             <AccordionItem value="lang" className="border border-slate-800 rounded-lg bg-slate-950/60 px-4">
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-center gap-2 text-cyan-400 font-bold text-base">
-                  <Globe className="w-5 h-5" /> 🌐 مغير اللغات بأعلام الدول (Multi-Language Switcher)
+                  <Globe className="w-5 h-5" /> 🌐 3. مغير اللغات بأعلام الدول (Multi-Language Switcher)
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pt-2 pb-4 text-slate-200">
@@ -751,9 +794,9 @@ export function PluginBuilderTab() {
                             <button
                               key={l.code}
                               onClick={() => toggleLanguage(l.code)}
-                              className={`flex items-center justify-between p-2 rounded text-xs font-bold border transition ${
+                              className={"flex items-center justify-between p-2 rounded text-xs font-bold border transition " + (
                                 isActive ? "bg-cyan-950/60 border-cyan-500 text-cyan-200" : "bg-slate-950 border-slate-800 text-slate-400"
-                              }`}
+                              )}
                             >
                               <span>{l.flag} {l.name}</span>
                               {isActive && <Check className="w-3.5 h-3.5 text-cyan-400" />}
@@ -771,12 +814,11 @@ export function PluginBuilderTab() {
             <AccordionItem value="sales" className="border border-slate-800 rounded-lg bg-slate-950/60 px-4">
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-center gap-2 text-rose-400 font-bold text-base">
-                  <Sparkles className="w-5 h-5" /> 🚀 الميزات الاستثنائية والخصومات والحماية
+                  <Sparkles className="w-5 h-5" /> 🚀 4. ميزات التسويق والواتساب والحماية
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pt-2 pb-4 text-slate-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Floating WhatsApp */}
                   <div className="p-3 border border-slate-800 rounded-lg bg-slate-900/50 space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="font-bold text-green-400">💬 زر الواتساب العائم للتواصل</Label>
@@ -784,12 +826,11 @@ export function PluginBuilderTab() {
                     </div>
                     {enableWhatsappFloat && (
                       <div className="space-y-2 pt-1">
-                        <Input value={whatsappFloatNumber} onChange={(e) => setWhatsappFloatNumber(e.target.value)} placeholder="رقم الواتساب (مثال 201012345678)" className="bg-slate-950 text-xs border-slate-800 font-mono" />
+                        <Input value={whatsappFloatNumber} onChange={(e) => setWhatsappFloatNumber(e.target.value)} placeholder="رقم الواتساب" className="bg-slate-950 text-xs border-slate-800 font-mono" />
                       </div>
                     )}
                   </div>
 
-                  {/* Sticky Mobile Bar */}
                   <div className="p-3 border border-slate-800 rounded-lg bg-slate-900/50 space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="font-bold text-rose-400">📱 شريط الموبايل الثابت لطلب سريع</Label>
@@ -799,6 +840,35 @@ export function PluginBuilderTab() {
                       <div className="pt-1">
                         <Input value={stickyBarText} onChange={(e) => setStickyBarText(e.target.value)} placeholder="نص الشريط الثابت" className="bg-slate-950 text-xs border-slate-800" />
                       </div>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* 5. REST API & WEBHOOKS */}
+            <AccordionItem value="api" className="border border-slate-800 rounded-lg bg-slate-950/60 px-4">
+              <AccordionTrigger className="hover:no-underline py-3">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
+                  <Cpu className="w-5 h-5" /> 🔌 5. REST API Endpoints & Webhooks
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-2 pb-4 text-slate-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 border border-slate-800 rounded-lg bg-slate-900/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-bold text-amber-400">تفعيل REST API Endpoint (/wp-json/telewoo/v1/info)</Label>
+                      <Switch checked={enableRestApiEndpoint} onCheckedChange={setEnableRestApiEndpoint} />
+                    </div>
+                  </div>
+
+                  <div className="p-3 border border-slate-800 rounded-lg bg-slate-900/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-bold text-amber-400">تفعيل Webhook عند إتمام طلب جديد</Label>
+                      <Switch checked={enableOrderWebhooks} onCheckedChange={setEnableOrderWebhooks} />
+                    </div>
+                    {enableOrderWebhooks && (
+                      <Input value={webhookTargetUrl} onChange={(e) => setWebhookTargetUrl(e.target.value)} placeholder="رابط الـ Webhook المستهدف" className="bg-slate-950 text-xs border-slate-800 font-mono" />
                     )}
                   </div>
                 </div>
@@ -859,12 +929,12 @@ export function PluginBuilderTab() {
         </CardContent>
       </Card>
 
-      {/* PLUGINS LIST & HISTORY */}
+      {/* PLUGINS MANAGEMENT DASHBOARD & HISTORY */}
       <Card className="border-slate-800 bg-slate-900/90 shadow-xl">
         <CardHeader className="pb-3 border-b border-slate-800">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-bold text-white flex items-center gap-2">
-              <History className="w-4 h-4 text-indigo-400" /> الإضافات المنشأة والمحفوظة بحسابك
+              <History className="w-4 h-4 text-indigo-400" /> منصة إدارة وتعديل الإضافات المنشأة بالحساب
             </CardTitle>
             <Badge variant="outline" className="text-slate-400 border-slate-700">{plugins.length} إضافة</Badge>
           </div>
@@ -882,9 +952,18 @@ export function PluginBuilderTab() {
                   </div>
                   <p className="text-xs text-slate-400">{p.description}</p>
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                  <Button size="sm" variant="outline" onClick={() => setEditModalPlugin(p)} className="text-xs font-bold text-amber-300 border-amber-500/40 hover:bg-amber-950/50 gap-1">
+                    <Edit3 className="w-3.5 h-3.5" /> تعديل بالـ AI
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => openCodeModal(p)} className="text-xs font-bold text-indigo-300 hover:bg-indigo-950/50 gap-1">
                     <Eye className="w-3.5 h-3.5" /> عرض الكود
+                  </Button>
+                  <Button size="sm" onClick={() => handleGenerateAndDeploy(true, p)} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold gap-1">
+                    <Zap className="w-3.5 h-3.5" /> إطلاق التحديث
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDeletePlugin(p.id)} className="text-xs font-bold text-rose-400 hover:bg-rose-950/50">
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
@@ -892,6 +971,46 @@ export function PluginBuilderTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* EDIT & MODIFY PLUGIN MODAL */}
+      <Dialog open={!!editModalPlugin} onOpenChange={(o) => !o && setEditModalPlugin(null)}>
+        <DialogContent className="max-w-2xl bg-slate-950 border-slate-800 text-white dir-rtl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-amber-300 flex items-center gap-2">
+              <Edit3 className="w-5 h-5 text-amber-400" /> التعديل على الإضافة بالذكاء الاصطناعي: {editModalPlugin?.name}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              اكتب التعديلات المحددة التي تريد إضافتها أو تعديلها في الإضافة الحالية. سيقوم الذكاء الاصطناعي بدمجها مع الكود الحالي وإصدار تحديث جديد دون مسح البيانات.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-200">التعديل أو الميزة الجديدة المطلوبة:</Label>
+              <Textarea
+                value={editPrompt}
+                onChange={(e) => setEditPrompt(e.target.value)}
+                placeholder="مثال: أضف صفحة إعدادات جديدة، أضف بوابة دفع Stripe، أنشئ REST Endpoint، غيّر التصميم..."
+                className="bg-slate-900 border-slate-800 text-white min-h-[120px] text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+            <Button
+              onClick={() => handleUpdatePluginWithAI(editModalPlugin)}
+              disabled={updatingPlugin}
+              className="bg-gradient-to-r from-amber-600 to-indigo-600 text-white font-bold text-xs px-5 py-2 gap-1.5"
+            >
+              {updatingPlugin ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
+              تحديث وحفظ الإضافة (Update Plugin)
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditModalPlugin(null)} className="text-xs text-slate-400">
+              إلغاء
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* CODE VIEW MODAL */}
       <Dialog open={!!viewCodePlugin} onOpenChange={(o) => !o && setViewCodePlugin(null)}>
