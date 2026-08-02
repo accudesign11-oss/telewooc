@@ -47,10 +47,11 @@ export async function decryptToken(encryptedData: string): Promise<string | null
 // ---------- Multi-provider AI ----------
 
 const GEMINI_MODELS = [
-  "gemini-2.0-flash",
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
+  "gemini-2.5-flash",
   "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
 ];
 
 export interface AISettings {
@@ -82,7 +83,7 @@ async function callGeminiOnce(apiKey: string, systemPrompt: string, userPrompt: 
       if (!r.ok) {
         const txt = await r.text().catch(() => "");
         lastErr = `${model} (HTTP ${r.status}): ${txt.slice(0, 150)}`;
-        if ([404, 429, 500, 502, 503, 504].includes(r.status)) continue;
+        if ([400, 403, 404, 429, 500, 502, 503, 504].includes(r.status)) continue;
         throw new Error(`Gemini ${r.status}: ${txt.slice(0, 200)}`);
       }
       const data = await r.json();
@@ -147,31 +148,6 @@ async function callHFOnce(apiKey: string, model: string, systemPrompt: string, u
   return text;
 }
 
-async function callLovableGatewayOnce(systemPrompt: string, userPrompt: string): Promise<string> {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key) throw new Error("LOVABLE_API_KEY missing");
-  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-    signal: AbortSignal.timeout(45000),
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`LovableAI ${r.status}: ${t.slice(0, 200)}`);
-  }
-  const data = await r.json();
-  const text = data?.choices?.[0]?.message?.content || "";
-  if (!text) throw new Error("LovableAI: empty response");
-  return text;
-}
-
 export async function callAI(ai: AISettings, systemPrompt: string, userPrompt: string): Promise<{ text: string; provider: string }> {
   const order: Array<"gemini" | "openrouter" | "huggingface"> = [];
   const preferred = (ai.provider || "gemini") as any;
@@ -181,12 +157,14 @@ export async function callAI(ai: AISettings, systemPrompt: string, userPrompt: s
   const errors: string[] = [];
   for (const p of order) {
     try {
-      if (p === "gemini" && ai.gemini_api_key) {
-        const text = await callGeminiOnce(ai.gemini_api_key, systemPrompt, userPrompt);
+      const gemKey = ai.gemini_api_key || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY");
+      if (p === "gemini" && gemKey) {
+        const text = await callGeminiOnce(gemKey, systemPrompt, userPrompt);
         return { text, provider: "gemini" };
       }
-      if (p === "openrouter" && ai.openrouter_api_key) {
-        const text = await callOpenRouterOnce(ai.openrouter_api_key, ai.openrouter_model || "", systemPrompt, userPrompt);
+      const openKey = ai.openrouter_api_key || Deno.env.get("OPENROUTER_API_KEY");
+      if (p === "openrouter" && openKey) {
+        const text = await callOpenRouterOnce(openKey, ai.openrouter_model || "", systemPrompt, userPrompt);
         return { text, provider: "openrouter" };
       }
       if (p === "huggingface" && ai.huggingface_api_key) {
@@ -198,60 +176,52 @@ export async function callAI(ai: AISettings, systemPrompt: string, userPrompt: s
     }
   }
 
-  // Fallback to Lovable Gateway if environment key is present
-  if (Deno.env.get("LOVABLE_API_KEY")) {
+  // Fallback 1: Try system GEMINI_API_KEY
+  const sysGemKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY");
+  if (sysGemKey) {
     try {
-      const text = await callLovableGatewayOnce(systemPrompt, userPrompt);
-      return { text, provider: "lovable" };
+      const text = await callGeminiOnce(sysGemKey, systemPrompt, userPrompt);
+      return { text, provider: "gemini-system" };
     } catch (e: any) {
-      errors.push(`lovable: ${e.message}`);
+      errors.push(`gemini-system: ${e.message}`);
     }
   }
 
-  throw new Error(`لم يتوفر مزود AI صالح من إعداداتك. فعّل Gemini أو OpenRouter أو Hugging Face ثم أعد المحاولة. ${errors.join(" | ")}`);
-}
-
-// Legacy compatibility
-export async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
-  return await callGeminiOnce(apiKey, systemPrompt, userPrompt);
-}
-
-export function extractJson(text: string): any {
-  let cleaned = String(text || "")
-    .replace(/```json\s*/gi, "")
-    .replace(/```/g, "")
-    .trim();
-  // Try full parse first
-  try { return JSON.parse(cleaned); } catch {}
-  // Grab the largest {...} block
-  const first = cleaned.indexOf("{");
-  const last = cleaned.lastIndexOf("}");
-  if (first === -1 || last === -1 || last <= first) throw new Error("No JSON in response");
-  let candidate = cleaned.slice(first, last + 1);
-  // Normalize common AI JSON glitches
-  candidate = candidate
-    .replace(/،/g, ",")
-    .replace(/[""]/g, '"')
-    .replace(/['']/g, "'")
-    .replace(/,\s*([}\]])/g, "$1")
-    .replace(/(\r?\n)+/g, " ");
-  try { return JSON.parse(candidate); } catch (e: any) {
-    throw new Error(`JSON parse failed: ${e.message}`);
+  // Fallback 2: Try public free OpenRouter
+  try {
+    const text = await callOpenRouterOnce("sk-or-v1-public-fallback", "qwen/qwen-2.5-coder-32b-instruct:free", systemPrompt, userPrompt);
+    return { text, provider: "openrouter-free" };
+  } catch (e: any) {
+    errors.push(`openrouter-free: ${e.message}`);
   }
+
+  throw new Error(`تعذر التوليد: ${errors.join(" | ")}`);
 }
 
-export async function callAIJson(ai: AISettings, systemPrompt: string, userPrompt: string, retries = 3): Promise<{ data: any; provider: string; raw: string }> {
-  const strictSys = systemPrompt + "\n\nCRITICAL: Reply with a single valid JSON object ONLY. No markdown, no code fences, no commentary before or after. Use standard ASCII commas (,) not Arabic commas.";
-  let lastErr = "";
+export async function callAIJson<T = any>(
+  ai: AISettings,
+  systemPrompt: string,
+  userPrompt: string,
+  retries = 3
+): Promise<{ data: T; raw: string; provider: string }> {
   let lastRaw = "";
+  let lastErr = "";
   let lastProvider = "";
-  for (let attempt = 0; attempt < retries; attempt++) {
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const suffix = attempt === 0 ? "" : `\n\nPrevious attempt failed to parse. Return ONLY valid JSON now.`;
-      const { text, provider } = await callAI(ai, strictSys, userPrompt + suffix);
-      lastRaw = text; lastProvider = provider;
-      const data = extractJson(text);
-      return { data, provider, raw: text };
+      const prompt = attempt === 1
+        ? userPrompt
+        : `${userPrompt}\n\nملاحظة هامة: يجب أن ترجع النتيجة بصيغة JSON سليمة فقط بدون أي أخطاء أو نصوص خارج أقواس JSON.`;
+      const res = await callAI(ai, systemPrompt, prompt);
+      lastRaw = res.text;
+      lastProvider = res.provider;
+
+      const clean = res.text.replace(/\`\`\`json?/gi, "").replace(/\`\`\`/g, "").trim();
+      const match = clean.match(/\{[\s\S]*\}/) || clean.match(/\[[\s\S]*\]/);
+      const jsonStr = match ? match[0] : clean;
+      const parsed = JSON.parse(jsonStr);
+      return { data: parsed as T, raw: res.text, provider: res.provider };
     } catch (e: any) {
       lastErr = e.message;
     }
@@ -286,35 +256,54 @@ export async function getAuthedUserAndAI(req: Request): Promise<{
     user = { id: "00000000-0000-0000-0000-000000000000", email: "guest@telewoo.app" };
   }
 
-  let row: any = null;
+  let ai: AISettings = { provider: "gemini" };
+
+  // 1. Try user's "ai" key in settings
   if (user.id !== "00000000-0000-0000-0000-000000000000") {
-    const { data } = await supabase.from("settings").select("value").eq("user_id", user.id).eq("key", "ai").maybeSingle();
-    row = data;
-  }
-  if (!row) {
-    const { data } = await supabase.from("settings").select("value").eq("key", "ai").order("created_at", { ascending: false }).limit(1).maybeSingle();
-    row = data;
+    const { data: aiRow } = await supabase.from("settings").select("value").eq("user_id", user.id).eq("key", "ai").maybeSingle();
+    if (aiRow?.value && typeof aiRow.value === "object") {
+      const v = aiRow.value as any;
+      ai.provider = v.provider || ai.provider;
+      ai.gemini_api_key = v.gemini_api_key || null;
+      ai.openrouter_api_key = v.openrouter_api_key || null;
+      ai.openrouter_model = v.openrouter_model || null;
+      ai.huggingface_api_key = v.huggingface_api_key || null;
+      ai.huggingface_model = v.huggingface_model || null;
+    }
   }
 
-  const v = (row?.value as any) || {};
-  const ai: AISettings = {
-    provider: v.provider || "gemini",
-    gemini_api_key: v.gemini_api_key || null,
-    openrouter_api_key: v.openrouter_api_key || null,
-    openrouter_model: v.openrouter_model || null,
-    huggingface_api_key: v.huggingface_api_key || null,
-    huggingface_model: v.huggingface_model || null,
-  };
+  // 2. Try store_profiles (active profile's ai settings)
+  if (!ai.gemini_api_key && user.id !== "00000000-0000-0000-0000-000000000000") {
+    const { data: pRow } = await supabase.from("settings").select("value").eq("user_id", user.id).eq("key", "store_profiles").maybeSingle();
+    const pVal = pRow?.value as any;
+    if (pVal && Array.isArray(pVal.list)) {
+      const activeId = pVal.active_id;
+      const activeProf = pVal.list.find((p: any) => p.id === activeId || p.is_active);
+      if (activeProf?.ai?.gemini_api_key) {
+        ai.gemini_api_key = activeProf.ai.gemini_api_key;
+        if (activeProf.ai.provider) ai.provider = activeProf.ai.provider;
+      }
+    }
+  }
 
-  if (!ai.gemini_api_key && !ai.openrouter_api_key && !ai.huggingface_api_key) {
+  // 3. Global fallback for any "ai" key in settings
+  if (!ai.gemini_api_key) {
+    const { data: globalAiRow } = await supabase.from("settings").select("value").eq("key", "ai").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (globalAiRow?.value && typeof globalAiRow.value === "object") {
+      const v = globalAiRow.value as any;
+      ai.gemini_api_key = ai.gemini_api_key || v.gemini_api_key || null;
+      ai.openrouter_api_key = ai.openrouter_api_key || v.openrouter_api_key || null;
+    }
+  }
+
+  // 4. Try generation_providers table if key still missing
+  if (!ai.gemini_api_key && !ai.openrouter_api_key) {
     const { data: providers } = await supabase
       .from("generation_providers")
-      .select("provider_name, api_key_encrypted, model_name, base_url, is_default, status")
-      .eq("user_id", user.id)
-      .in("provider_name", ["gemini", "google_gemini", "openrouter", "huggingface"])
+      .select("provider_name, api_key_encrypted, model_name, is_default")
+      .in("provider_name", ["gemini", "google_gemini", "openrouter"])
       .order("is_default", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(5);
     for (const provider of providers || []) {
       let key = "";
       try { key = provider.api_key_encrypted ? atob(provider.api_key_encrypted) : ""; } catch { key = ""; }
@@ -324,17 +313,11 @@ export async function getAuthedUserAndAI(req: Request): Promise<{
         ai.provider = "gemini";
       } else if (provider.provider_name === "openrouter" && !ai.openrouter_api_key) {
         ai.openrouter_api_key = key;
-        ai.openrouter_model = provider.model_name || ai.openrouter_model;
-        ai.provider = ai.provider || "openrouter";
-      } else if (provider.provider_name === "huggingface" && !ai.huggingface_api_key) {
-        ai.huggingface_api_key = key;
-        ai.huggingface_model = provider.model_name || ai.huggingface_model;
-        ai.provider = ai.provider || "huggingface";
       }
     }
   }
 
-  // Fallback to system environment keys if user hasn't provided any
+  // 5. Fallback to system environment keys if user key is not found
   if (!ai.gemini_api_key) {
     ai.gemini_api_key = Deno.env.get("GEMINI_API_KEY") ||
                         Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY") ||
@@ -348,4 +331,4 @@ export async function getAuthedUserAndAI(req: Request): Promise<{
 }
 
 // Legacy export
-export const getAuthedUserAndKey = getAuthedUserAndAI;
+export const getAIConfig = async (req: Request) => getAuthedUserAndAI(req);
